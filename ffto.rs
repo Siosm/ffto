@@ -1,7 +1,6 @@
 extern mod extra;
 
 use std::from_str::from_str;
-use std::io::net::ip::SocketAddr;
 use std::io::net::tcp::{TcpListener,TcpStream};
 use std::io::{Acceptor,Listener};
 use std::run::{Process,ProcessOptions};
@@ -14,7 +13,7 @@ fn main() {
         let address = "127.0.0.1:7777";
 
         // Prepare a socket listening on localhost:7777
-        let addr: SocketAddr = from_str(address).expect(format!("Invalid address: {}", address));
+        let addr = from_str(address).expect(format!("Invalid address: {}", address));
         let listener = TcpListener::bind(addr).expect(format!("Failed to bind to: {}", address));
         let mut acceptor = listener.listen().expect("Could not listen");
 
@@ -45,10 +44,9 @@ fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
                 debug!("Current line is: {}", line);
 
                 // This tries to convert the line to a Url struct
-                let url: Option<Url> = from_str(line);
+                let url = from_str(line);
 
-                // If this fails, it returns None, else we got a valid
-                // URL
+                // On failure it returns None; on success a valid URL
                 match url {
                         None     => { info!("No Url found") }
                         Some(u)  => {
