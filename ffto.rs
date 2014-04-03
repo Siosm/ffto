@@ -2,7 +2,7 @@ extern mod extra;
 
 use std::from_str::from_str;
 use std::io::net::ip::SocketAddr;
-use std::io::net::tcp::TcpListener;
+use std::io::net::tcp::{TcpListener,TcpStream};
 use std::io::{Acceptor,Listener};
 use std::run::{Process,ProcessOptions};
 
@@ -20,32 +20,41 @@ fn main() {
 
         // Infinite loop to keep handling new connections.
         loop {
-                let mut tcpStream = acceptor.accept().expect("Could not accept connection");
+                let tcpStream = acceptor.accept().expect("Could not accept connection");
                 debug!("Accepted new connection");
+                do spawn {
+                        handleClient(tcpStream, browserCommand)
+                }
+        }
+}
 
-                // Note that as soon as read_to_str() returns, everything sent
-                // to the socket after this point will be discarded as once
-                // we're done working with the content we've just read, the
-                // tcpStream will be freed at the end of the current loop
-                // iteration.
-                let message = tcpStream.read_to_str();
+// Accept a new connection and listen for URLs
+fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
+        debug!("Spawned new task");
 
-                // Iterate over the lines in the received message
-                for line in message.lines() {
-                        debug!("Current line is: {}", line);
+        let mut tcpStream = tcpStream;
 
-                        // This tries to convert the line to a Url struct
-                        let url: Option<Url> = from_str(line);
+        // Note that as soon as read_to_str() returns, everything sent
+        // to the socket after this point will be discarded as once
+        // we're done working with the content we've just read, the
+        // tcpStream will be freed.
+        let message = tcpStream.read_to_str();
 
-                        // If this fails, it returns None, else we got a valid
-                        // URL
-                        match url {
-                                None     => { info!("No Url found") }
-                                Some(u)  => {
-                                        debug!("Found Url in: {}", line);
-                                        if checkUrl(&u) {
-                                                spawnProcess(&u, browserCommand)
-                                        }
+        // Iterate over the lines in the received message
+        for line in message.lines() {
+                debug!("Current line is: {}", line);
+
+                // This tries to convert the line to a Url struct
+                let url: Option<Url> = from_str(line);
+
+                // If this fails, it returns None, else we got a valid
+                // URL
+                match url {
+                        None     => { info!("No Url found") }
+                        Some(u)  => {
+                                debug!("Found Url in: {}", line);
+                                if checkUrl(&u) {
+                                        spawnProcess(&u, browserCommand)
                                 }
                         }
                 }
@@ -54,8 +63,7 @@ fn main() {
 
 // Check that the URL is actually usable
 fn checkUrl(u: &Url) -> bool {
-        (u.scheme == ~"http" || u.scheme == ~"https" )
-                && u.host != ~""
+        (u.scheme == ~"http" || u.scheme == ~"https" ) && u.host != ~""
 }
 
 // Spawn a browser to access the URL
