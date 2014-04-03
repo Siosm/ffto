@@ -8,24 +8,43 @@ use std::run::{Process,ProcessOptions};
 
 use extra::url::Url;
 
-
+// Note: Error handling should be improved
 fn main() {
+        let browserCommand = "firefox";
         let address = "127.0.0.1:7777";
+
+        // Prepare a socket listening on localhost:7777
         let addr: SocketAddr = from_str(address).expect(format!("Invalid address: {}", address));
         let listener = TcpListener::bind(addr).expect(format!("Failed to bind to: {}", address));
         let mut acceptor = listener.listen().expect("Could not listen");
+
+        // Infinite loop to keep handling new connections.
         loop {
                 let mut tcpStream = acceptor.accept().expect("Could not accept connection");
+                debug!("Accepted new connection");
+
+                // Note that as soon as read_to_str() returns, everything sent
+                // to the socket after this point will be discarded as once
+                // we're done working with the content we've just read, the
+                // tcpStream will be freed at the end of the current loop
+                // iteration.
                 let message = tcpStream.read_to_str();
+
+                // Iterate over the lines in the received message
                 for line in message.lines() {
-                        // println!("Got message: {}", line);
+                        debug!("Current line is: {}", line);
+
+                        // This tries to convert the line to a Url struct
                         let url: Option<Url> = from_str(line);
+
+                        // If this fails, it returns None, else we got a valid
+                        // URL
                         match url {
-                                None     => { println("No Url found") }
+                                None     => { info!("No Url found") }
                                 Some(u)  => {
-                                        // println!("Found Url in: {}", line);
+                                        debug!("Found Url in: {}", line);
                                         if checkUrl(&u) {
-                                                spawnProcess(&u, "firefox")
+                                                spawnProcess(&u, browserCommand)
                                         }
                                 }
                         }
@@ -33,13 +52,15 @@ fn main() {
         }
 }
 
+// Check that the URL is actually usable
 fn checkUrl(u: &Url) -> bool {
         (u.scheme == ~"http" || u.scheme == ~"https" )
                 && u.host != ~""
 }
 
+// Spawn a browser to access the URL
 fn spawnProcess(u: &Url, command: &'static str) {
-        // println!("{} {}", command, u.to_str());
+        debug!("Spawning process {} {}", command, u.to_str());
         let pOptions = ProcessOptions::new();
         let mut child = Process::new(command, [u.to_str()], pOptions).expect("Could not fork process");
         child.finish();
