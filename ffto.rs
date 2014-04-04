@@ -1,11 +1,11 @@
-extern crate extra;
+#![feature(phase)]
+#[phase(syntax, link)] extern crate log;
+extern crate url;
 
 use std::from_str::from_str;
 use std::io::net::tcp::{TcpListener,TcpStream};
-use std::io::{Acceptor,Listener};
-use std::run::{Process,ProcessOptions};
-
-use extra::url::Url;
+use std::io::{Acceptor,Listener,Process};
+use url::Url;
 
 // Note: Error handling could be improved
 fn main() {
@@ -67,7 +67,6 @@ fn checkUrl(u: &Url) -> bool {
 // Spawn a browser to access the URL
 fn spawnProcess(u: &Url, command: &'static str) {
 	debug!("Spawning process {} {}", command, u.to_str());
-	let pOptions = ProcessOptions::new();
-	let mut child = Process::new(command, [u.to_str()], pOptions).unwrap();
-	child.finish();
+	let mut child = Process::new(command, [u.to_str()]).unwrap();
+	child.wait();
 }
