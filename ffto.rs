@@ -10,69 +10,69 @@ use url::Url;
 
 // Note: Error handling could be improved
 fn main() {
-	let browserCommand = "firefox";
-	let address = "127.0.0.1";
-	let port = 7777;
+    let browserCommand = "firefox";
+    let address = "127.0.0.1";
+    let port = 7777;
 
-	// Prepare a socket listening on localhost:7777
-	let listener = TcpListener::bind(address, port).unwrap();
-	let mut acceptor = listener.listen().unwrap();
+    // Prepare a socket listening on localhost:7777
+    let listener = TcpListener::bind(address, port).unwrap();
+    let mut acceptor = listener.listen().unwrap();
 
-	// Infinite loop to keep handling new connections.
-	loop {
-		let tcpStream = acceptor.accept().unwrap();
-		debug!("Accepted new connection");
-		spawn(proc() {
-			handle_client(tcpStream, browserCommand)
-		});
-	}
+    // Infinite loop to keep handling new connections.
+    loop {
+        let tcpStream = acceptor.accept().unwrap();
+        debug!("Accepted new connection");
+        spawn(proc() {
+            handle_client(tcpStream, browserCommand)
+        });
+    }
 }
 
 // Accept a new connection and listen for URLs
 fn handle_client(tcpStream: TcpStream, browserCommand: &'static str) {
-	debug!("Spawned new task");
+    debug!("Spawned new task");
 
-	let mut tcpStream = tcpStream;
+    let mut tcpStream = tcpStream;
 
-	// Note that as soon as read_to_str() returns, everything sent
-	// to the socket after this point will be discarded as once
-	// we're done working with the content we've just read, the
-	// tcpStream will be freed.
-	let message = tcpStream.read_to_str().unwrap();
+    // Note that as soon as read_to_str() returns, everything sent
+    // to the socket after this point will be discarded as once
+    // we're done working with the content we've just read, the
+    // tcpStream will be freed.
+    let message = tcpStream.read_to_str().unwrap();
 
-	// Iterate over the lines in the received message
-	for line in message.as_slice().split('\n') {
-		debug!("Current line is: {}", line);
+    // Iterate over the lines in the received message
+    for line in message.as_slice().split('\n') {
+        debug!("Current line is: {}", line);
 
-		// This tries to convert the line to a Url struct
-		let url = from_str(line);
+        // This tries to convert the line to a Url struct
+        let url = from_str(line);
 
-		// On failure it returns None; on success a valid URL
-		match url {
-			None     => { info!("No Url found") }
-			Some(u)  => {
-				debug!("Found Url in: {}", line);
-				if check_url(&u) {
-					spawn_process(&u, browserCommand)
-				}
-			}
-		}
-	}
+        // On failure it returns None; on success a valid URL
+        match url {
+            None     => { info!("No Url found") }
+            Some(u)  => {
+                debug!("Found Url in: {}", line);
+                if check_url(&u) {
+                    spawn_process(&u, browserCommand)
+                }
+            }
+        }
+    }
 }
 
 // Check that the URL is actually usable
 fn check_url(u: &Url) -> bool {
-	(u.scheme == String::from_str("http") ||
-	 u.scheme == String::from_str("https"))
-		&& !u.host.is_empty()
+    (u.scheme == String::from_str("http") ||
+     u.scheme == String::from_str("https"))
+        && !u.host.is_empty()
 }
 
 // Spawn a browser to access the URL
 fn spawn_process(u: &Url, command: &'static str) {
-	debug!("Spawning process: {} {}", command, u.to_str());
-	let mut child = match Command::new(command).arg(u.to_str()).spawn() {
-		Ok(child) => child,
-		Err(e)    => fail!("Failed to spawn process: {}. {}", command, e),
-	};
-	child.wait().unwrap().success();
+    debug!("Spawning process: {} {}", command, u.to_str());
+    let mut child = match Command::new(command).arg(u.to_str()).spawn() {
+        Ok(child) => child,
+        Err(e)    => fail!("Failed to spawn process: {}. {}", command, e),
+    };
+    child.wait().unwrap().success();
 }
