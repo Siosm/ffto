@@ -1,20 +1,21 @@
 #![feature(phase)]
-#[phase(syntax, link)] extern crate log;
+#[phase(plugin, link)] extern crate log;
 extern crate url;
 
 use std::from_str::from_str;
 use std::io::net::tcp::{TcpListener,TcpStream};
-use std::io::{Acceptor,Listener,Process};
+use std::io::{Acceptor,Listener,Command};
+use std::string::String;
 use url::Url;
 
 // Note: Error handling could be improved
 fn main() {
 	let browserCommand = "firefox";
-	let address = "127.0.0.1:7777";
+	let address = "127.0.0.1";
+	let port = 7777;
 
 	// Prepare a socket listening on localhost:7777
-	let addr = from_str(address).expect(format!("Invalid address: {}", address));
-	let listener = TcpListener::bind(addr).unwrap();
+	let listener = TcpListener::bind(address, port).unwrap();
 	let mut acceptor = listener.listen().unwrap();
 
 	// Infinite loop to keep handling new connections.
@@ -22,13 +23,13 @@ fn main() {
 		let tcpStream = acceptor.accept().unwrap();
 		debug!("Accepted new connection");
 		spawn(proc() {
-			handleClient(tcpStream, browserCommand)
+			handle_client(tcpStream, browserCommand)
 		});
 	}
 }
 
 // Accept a new connection and listen for URLs
-fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
+fn handle_client(tcpStream: TcpStream, browserCommand: &'static str) {
 	debug!("Spawned new task");
 
 	let mut tcpStream = tcpStream;
@@ -40,7 +41,7 @@ fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
 	let message = tcpStream.read_to_str().unwrap();
 
 	// Iterate over the lines in the received message
-	for line in message.lines() {
+	for line in message.as_slice().split('\n') {
 		debug!("Current line is: {}", line);
 
 		// This tries to convert the line to a Url struct
@@ -51,8 +52,8 @@ fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
 			None     => { info!("No Url found") }
 			Some(u)  => {
 				debug!("Found Url in: {}", line);
-				if checkUrl(&u) {
-					spawnProcess(&u, browserCommand)
+				if check_url(&u) {
+					spawn_process(&u, browserCommand)
 				}
 			}
 		}
@@ -60,13 +61,18 @@ fn handleClient(tcpStream: TcpStream, browserCommand: &'static str) {
 }
 
 // Check that the URL is actually usable
-fn checkUrl(u: &Url) -> bool {
-	(u.scheme == ~"http" || u.scheme == ~"https" ) && u.host != ~""
+fn check_url(u: &Url) -> bool {
+	(u.scheme == String::from_str("http") ||
+	 u.scheme == String::from_str("https"))
+		&& !u.host.is_empty()
 }
 
 // Spawn a browser to access the URL
-fn spawnProcess(u: &Url, command: &'static str) {
-	debug!("Spawning process {} {}", command, u.to_str());
-	let mut child = Process::new(command, [u.to_str()]).unwrap();
-	child.wait();
+fn spawn_process(u: &Url, command: &'static str) {
+	debug!("Spawning process: {} {}", command, u.to_str());
+	let mut child = match Command::new(command).arg(u.to_str()).spawn() {
+		Ok(child) => child,
+		Err(e)    => fail!("Failed to spawn process: {}. {}", command, e),
+	};
+	child.wait().unwrap().success();
 }
