@@ -2,10 +2,8 @@
 #[phase(plugin, link)] extern crate log;
 extern crate url;
 
-use std::from_str::from_str;
 use std::io::net::tcp::{TcpListener,TcpStream};
 use std::io::{Acceptor,Listener,Command};
-use std::string::String;
 use url::Url;
 
 // Note: Error handling could be improved
@@ -45,12 +43,12 @@ fn handle_client(stream: TcpStream, browser_command: &'static str) {
         debug!("Current line is: {}", line);
 
         // This tries to convert the line to a Url struct
-        let url = from_str(line);
+        let url = Url::parse(line);
 
         // On failure it returns None; on success a valid URL
         match url {
-            None     => { info!("No Url found") }
-            Some(u)  => {
+            Err(e) => { info!("No Url found: {}", e) }
+            Ok(u)  => {
                 debug!("Found Url in: {}", line);
                 if check_url(&u) {
                     spawn_process(&u, browser_command)
@@ -62,9 +60,8 @@ fn handle_client(stream: TcpStream, browser_command: &'static str) {
 
 // Check that the URL is actually usable
 fn check_url(u: &Url) -> bool {
-    (u.scheme == String::from_str("http") ||
-     u.scheme == String::from_str("https"))
-        && !u.host.is_empty()
+    (u.scheme.as_slice() == "http" || u.scheme.as_slice() == "https")
+        && u.host().is_some()
 }
 
 // Spawn a browser to access the URL
