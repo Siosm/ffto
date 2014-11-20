@@ -9,11 +9,10 @@ use url::Url;
 // Note: Error handling could be improved
 fn main() {
     let browser_command = "firefox";
-    let address = "127.0.0.1";
-    let port = 7777;
+    let address = "127.0.0.1:7777";
 
     // Prepare a socket listening on localhost:7777
-    let listener = TcpListener::bind(address, port).unwrap();
+    let listener = TcpListener::bind(address).unwrap();
     let mut acceptor = listener.listen().unwrap();
 
     // Infinite loop to keep handling new connections.
@@ -70,7 +69,7 @@ fn spawn_process(u: &Url, command: &'static str) {
     let url = format!("{}", u);
     let mut child = match Command::new(command).arg(url).spawn() {
         Ok(child) => child,
-        Err(e)    => fail!("Failed to spawn process: {}. {}", command, e),
+        Err(e)    => panic!("Failed to spawn process: {}. {}", command, e),
     };
     child.wait().unwrap().success();
 }
