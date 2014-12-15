@@ -2,11 +2,11 @@
 name = "ffto"
 version = "0.0.1"
 dependencies = [
- "url 0.2.3 (git+https://github.com/servo/rust-url)",
+ "url 0.2.5 (git+https://github.com/servo/rust-url)",
 ]
 
 [[package]]
 name = "url"
-version = "0.2.3"
-source = "git+https://github.com/servo/rust-url#1b626ae7718a694b3b63f747900944008fa44e7b"
+version = "0.2.5"
+source = "git+https://github.com/servo/rust-url#c177fb35e9158065c1b4d0760583549bc0c3334c"
 

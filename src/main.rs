@@ -24,7 +24,7 @@ fn main() {
         match acceptor.accept() {
             Ok(s)  => {
                 debug!("Accepted new incoming connection");
-                spawn(proc() {
+                spawn(move || {
                     debug!("Spawned new task");
                     handle_client(s, browser_command)
                 });
