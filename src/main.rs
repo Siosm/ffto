@@ -1,3 +1,5 @@
+ #![feature(io, net, core, process, std_misc)]
+
 #[macro_use] extern crate log;
 extern crate url;
 
@@ -21,7 +23,7 @@ fn main() {
         match stream {
             Ok(stream)  => {
                 debug!("Accepted new incoming connection");
-                Thread::scoped(move || {
+                let _ = Thread::scoped(move || {
                     debug!("Spawned new thread to handle connection");
                     handle_client(stream, browser_command)
                 });
