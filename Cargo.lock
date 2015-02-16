@@ -2,11 +2,31 @@
 name = "ffto"
 version = "0.0.1"
 dependencies = [
- "url 0.2.5 (git+https://github.com/servo/rust-url)",
+ "log 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
+name = "log"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "matches"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "rustc-serialize"
+version = "0.2.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "url"
-version = "0.2.5"
-source = "git+https://github.com/servo/rust-url#c177fb35e9158065c1b4d0760583549bc0c3334c"
+version = "0.2.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 

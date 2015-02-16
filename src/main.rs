@@ -1,10 +1,11 @@
-#![feature(phase)]
-#[phase(plugin, link)] extern crate log;
+#[macro_use] extern crate log;
 extern crate url;
 
-use std::io::net::tcp::{TcpListener,TcpStream};
-use std::io::{Acceptor,Listener,Command};
-use std::io::process::ProcessExit;
+use std::io::Read;
+use std::net::{TcpListener, TcpStream};
+use std::process::Command;
+use std::os::unix::ExitStatusExt;
+use std::thread::Thread;
 use url::Url;
 
 fn main() {
@@ -15,37 +16,35 @@ fn main() {
         Ok(l)  => l,
         Err(e) => panic!("Could not bind to {}: {}", address, e)
     };
-    let mut acceptor = match listener.listen() {
-        Ok(a)  => a,
-        Err(e) => panic!("Could not listen for connections: {}", e)
-    };
 
-    loop {
-        match acceptor.accept() {
-            Ok(s)  => {
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream)  => {
                 debug!("Accepted new incoming connection");
-                spawn(move || {
-                    debug!("Spawned new task");
-                    handle_client(s, browser_command)
+                Thread::scoped(move || {
+                    debug!("Spawned new thread to handle connection");
+                    handle_client(stream, browser_command)
                 });
             },
             Err(e) => panic!("Could not handle incoming connection: {}", e)
         }
     }
+
+    drop(listener);
 }
 
-fn handle_client(stream: TcpStream, browser_command: &str) {
-    let mut tcp_stream = stream;
-
-    // FIXME: do we need to read in a loop?
-    let message = match tcp_stream.read_to_string() {
-        Ok(s)  => s,
-        Err(e) => panic!("Input isn't a valid UTF-8 string: {}", e)
+fn handle_client(mut stream: TcpStream, browser_command: &str) {
+    let mut message = String::new();
+    match stream.read_to_string(& mut message) {
+        Ok(()) => {},
+        Err(e) => {
+            error!("Input isn't a valid UTF-8 string: {}", e);
+            return
+        }
     };
 
     for line in message.split('\n') {
         debug!("Current line is: {}", line);
-
         match Url::parse(line) {
             Ok(u)  => {
                 debug!("Found URL in: {}", line);
@@ -64,24 +63,23 @@ fn url_valid(u: &Url) -> bool {
         && u.host().is_some()
 }
 
-
 fn spawn_browser(command: &str, url: &str) {
     debug!("Spawning process: {} {}", command, url);
-    let mut child = match Command::new(command).arg(url).spawn() {
-        Ok(child) => child,
-        Err(e)    => panic!("Failed to spawn process '{}': {}", command, e)
+    let status = match Command::new(command).arg(url).status() {
+        Ok(status) => status,
+        Err(e) => panic!("Failed to spawn process '{} {}': {}", command, url, e)
     };
-    match child.wait() {
-        Ok(p)  => {
-            if p.success() {
-                debug!("Process exited successfully");
-            } else {
-                match p {
-                    ProcessExit::ExitStatus(s) => panic!("Process exited with status: {}", s),
-                    ProcessExit::ExitSignal(s) => panic!("Process received signal: {}", s)
+    if status.success() {
+        debug!("Process exited successfully");
+    } else {
+        match status.code() {
+            None => {
+                match status.signal() {
+                    None => panic!("Should never happen!"),
+                    Some(i) => panic!("Process received signal: {}", i)
                 }
             }
-        },
-        Err(e) => panic!("This should never happen! ({})", e)
+            Some(i) => panic!("Process exited with status: {}", i)
+        }
     }
 }

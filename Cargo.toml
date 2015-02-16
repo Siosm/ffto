@@ -1,9 +1,8 @@
 [package]
-
 name = "ffto"
 version = "0.0.1"
 authors = ["Timothée Ravier <tim@siosm.fr>"]
 
-[dependencies.url]
-
-git = "https://github.com/servo/rust-url"
+[dependencies]
+log = "*"
+url = "*"
