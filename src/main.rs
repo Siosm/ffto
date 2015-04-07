@@ -1,13 +1,11 @@
- #![feature(io, net, core, process, std_misc)]
-
 #[macro_use] extern crate log;
 extern crate url;
 
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 use std::process::Command;
-use std::os::unix::ExitStatusExt;
-use std::thread::Thread;
+use std::os::unix::process::ExitStatusExt;
+use std::thread;
 use url::Url;
 
 fn main() {
@@ -23,7 +21,7 @@ fn main() {
         match stream {
             Ok(stream)  => {
                 debug!("Accepted new incoming connection");
-                let _ = Thread::scoped(move || {
+                thread::spawn(move || {
                     debug!("Spawned new thread to handle connection");
                     handle_client(stream, browser_command)
                 });
@@ -38,7 +36,7 @@ fn main() {
 fn handle_client(mut stream: TcpStream, browser_command: &str) {
     let mut message = String::new();
     match stream.read_to_string(& mut message) {
-        Ok(()) => {},
+        Ok(_) => {},
         Err(e) => {
             error!("Input isn't a valid UTF-8 string: {}", e);
             return
@@ -52,7 +50,7 @@ fn handle_client(mut stream: TcpStream, browser_command: &str) {
                 debug!("Found URL in: {}", line);
                 if url_valid(&u) {
                     debug!("Found URL is valid");
-                    spawn_browser(browser_command, format!("{}", u).as_slice());
+                    spawn_browser(browser_command, &format!("{}", u));
                 }
             },
             Err(e) => info!("No URL found in '{}': {}", line, e)
@@ -61,27 +59,28 @@ fn handle_client(mut stream: TcpStream, browser_command: &str) {
 }
 
 fn url_valid(u: &Url) -> bool {
-    (u.scheme.as_slice() == "http" || u.scheme.as_slice() == "https")
+    (u.scheme == "http" || u.scheme == "https")
         && u.host().is_some()
 }
 
 fn spawn_browser(command: &str, url: &str) {
     debug!("Spawning process: {} {}", command, url);
-    let status = match Command::new(command).arg(url).status() {
-        Ok(status) => status,
+    let output = match Command::new(command).arg(url).output() {
+        Ok(output) => output,
         Err(e) => panic!("Failed to spawn process '{} {}': {}", command, url, e)
     };
-    if status.success() {
+    if output.status.success() {
         debug!("Process exited successfully");
     } else {
-        match status.code() {
+        match output.status.code() {
             None => {
-                match status.signal() {
+                match output.status.signal() {
                     None => panic!("Should never happen!"),
                     Some(i) => panic!("Process received signal: {}", i)
                 }
             }
             Some(i) => panic!("Process exited with status: {}", i)
         }
+        info!("stdout:\n{:?}\n\nstderr:\n{:?}", output.stdout, output.stderr);
     }
 }
