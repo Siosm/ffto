@@ -1,18 +1,55 @@
 #[macro_use] extern crate log;
 extern crate url;
+extern crate rustc_serialize;
+extern crate docopt;
 
+use docopt::Docopt;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
-use std::process::Command;
 use std::os::unix::process::ExitStatusExt;
+use std::process::Command;
+use std::process::exit;
 use std::thread;
 use url::Url;
 
-fn main() {
-    let browser_command = "firefox";
-    let address = "127.0.0.1:7777";
+// Docopt usage string
+static USAGE: &'static str = "
+Usage: ffto [--command=<cmd>] [--address=<addr>]
+       ffto --help
 
-    let listener = match TcpListener::bind(address) {
+Options:
+    -h, --help        Show this message.
+    --command=<cmd>   Command executed for each URL received [default: firefox].
+    --address=<addr>  Address and port to listen to [default: 127.0.0.1:7777].
+";
+
+#[derive(RustcDecodable)]
+struct Args {
+    flag_help: bool,
+    flag_command: Option<String>,
+    flag_address: Option<String>,
+}
+
+fn main() {
+    let args: Args = Docopt::new(USAGE)
+                            .and_then(|d| d.decode())
+                            .unwrap_or_else(|e| e.exit());
+
+    if args.flag_help {
+        print!("{}", USAGE);
+        exit(0);
+    }
+
+    let browser_command = match args.flag_command {
+        Some(cmd) => cmd.clone(),
+        None => format!("firefox")
+    };
+    let address = match args.flag_address {
+        Some(addr) => addr,
+        None => format!("129.0.0.1:7777")
+    };
+
+    let listener = match TcpListener::bind(&address[..]) {
         Ok(l)  => l,
         Err(e) => panic!("Could not bind to {}: {}", address, e)
     };
@@ -21,9 +58,10 @@ fn main() {
         match stream {
             Ok(stream)  => {
                 debug!("Accepted new incoming connection");
+                let command = browser_command.clone();
                 thread::spawn(move || {
                     debug!("Spawned new thread to handle connection");
-                    handle_client(stream, browser_command)
+                    handle_client(stream, &command)
                 });
             },
             Err(e) => panic!("Could not handle incoming connection: {}", e)
@@ -33,7 +71,7 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream, browser_command: &str) {
+fn handle_client(mut stream: TcpStream, browser_command: &String) {
     let mut message = String::new();
     match stream.read_to_string(& mut message) {
         Ok(_) => {},
@@ -63,7 +101,7 @@ fn url_valid(u: &Url) -> bool {
         && u.host().is_some()
 }
 
-fn spawn_browser(command: &str, url: &str) {
+fn spawn_browser(command: &String, url: &String) {
     debug!("Spawning process: {} {}", command, url);
     let output = match Command::new(command).arg(url).output() {
         Ok(output) => output,

@@ -6,3 +6,5 @@ authors = ["Timothée Ravier <tim@siosm.fr>"]
 [dependencies]
 log = "*"
 url = "*"
+docopt = "*"
+rustc-serialize = "*"
