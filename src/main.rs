@@ -97,7 +97,7 @@ fn handle_client(mut stream: TcpStream, browser_command: &String) {
 }
 
 fn url_valid(u: &Url) -> bool {
-    (u.scheme == "http" || u.scheme == "https")
+    (u.scheme() == "http" || u.scheme() == "https")
         && u.host().is_some()
 }
 
