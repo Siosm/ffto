@@ -1,53 +1,37 @@
 #[macro_use] extern crate log;
 extern crate url;
 extern crate rustc_serialize;
-extern crate docopt;
+extern crate clap;
 
-use docopt::Docopt;
+use clap::{Arg, App};
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::process::ExitStatusExt;
 use std::process::Command;
-use std::process::exit;
 use std::thread;
 use url::Url;
 
-// Docopt usage string
-static USAGE: &'static str = "
-Usage: ffto [--command=<cmd>] [--address=<addr>]
-       ffto --help
-
-Options:
-    -h, --help        Show this message.
-    --command=<cmd>   Command executed for each URL received [default: firefox].
-    --address=<addr>  Address and port to listen to [default: 127.0.0.1:7777].
-";
-
-#[derive(RustcDecodable)]
-struct Args {
-    flag_help: bool,
-    flag_command: Option<String>,
-    flag_address: Option<String>,
-}
-
 fn main() {
-    let args: Args = Docopt::new(USAGE)
-                            .and_then(|d| d.decode())
-                            .unwrap_or_else(|e| e.exit());
+    let matches = App::new("ffto")
+        .version("0.0.2")
+        .author("Timothée Ravier <tim@siosm.fr>")
+        .about("Open URLs received as input in the default browser")
+        .arg(Arg::with_name("command")
+             .short("c")
+             .long("command")
+             .value_name("cmd")
+             .help("Command executed for each URL received")
+             .default_value("xdg-open"))
+        .arg(Arg::with_name("listen address")
+             .short("l")
+             .long("listen-address")
+             .value_name("addr")
+             .help("Address and port to listen to")
+             .default_value("127.0.0.1:7777"))
+        .get_matches();
 
-    if args.flag_help {
-        print!("{}", USAGE);
-        exit(0);
-    }
-
-    let browser_command = match args.flag_command {
-        Some(cmd) => cmd.clone(),
-        None => format!("firefox")
-    };
-    let address = match args.flag_address {
-        Some(addr) => addr,
-        None => format!("129.0.0.1:7777")
-    };
+    let browser_command = matches.value_of("command").unwrap().to_string();
+    let address = matches.value_of("listen address").unwrap();
 
     let listener = match TcpListener::bind(&address[..]) {
         Ok(l)  => l,
@@ -61,7 +45,7 @@ fn main() {
                 let command = browser_command.clone();
                 thread::spawn(move || {
                     debug!("Spawned new thread to handle connection");
-                    handle_client(stream, &command)
+                    handle_client(stream, command)
                 });
             },
             Err(e) => panic!("Could not handle incoming connection: {}", e)
@@ -71,7 +55,7 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream, browser_command: &String) {
+fn handle_client(mut stream: TcpStream, browser_command: String) {
     let mut message = String::new();
     match stream.read_to_string(& mut message) {
         Ok(_) => {},
@@ -88,7 +72,7 @@ fn handle_client(mut stream: TcpStream, browser_command: &String) {
                 debug!("Found URL in: {}", line);
                 if url_valid(&u) {
                     debug!("Found URL is valid");
-                    spawn_browser(browser_command, &format!("{}", u));
+                    spawn_browser(&browser_command, &format!("{}", u));
                 }
             },
             Err(e) => info!("No URL found in '{}': {}", line, e)
@@ -101,7 +85,7 @@ fn url_valid(u: &Url) -> bool {
         && u.host().is_some()
 }
 
-fn spawn_browser(command: &String, url: &String) {
+fn spawn_browser(command: &str, url: &str) {
     debug!("Spawning process: {} {}", command, url);
     let output = match Command::new(command).arg(url).output() {
         Ok(output) => output,
