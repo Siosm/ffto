@@ -94,6 +94,9 @@ fn spawn_browser(command: &str, url: &str) {
     if output.status.success() {
         debug!("Process exited successfully");
     } else {
+        info!("stdout:\n{:?}\n\nstderr:\n{:?}",
+              output.stdout,
+              output.stderr);
         match output.status.code() {
             None => {
                 match output.status.signal() {
@@ -103,6 +106,5 @@ fn spawn_browser(command: &str, url: &str) {
             }
             Some(i) => panic!("Process exited with status: {}", i)
         }
-        info!("stdout:\n{:?}\n\nstderr:\n{:?}", output.stdout, output.stderr);
     }
 }
