@@ -1,17 +1,17 @@
 #[macro_use]
 extern crate log;
-extern crate url;
 extern crate rustc_serialize;
 extern crate structopt;
+extern crate url;
 #[macro_use]
 extern crate structopt_derive;
 
-use structopt::StructOpt;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::process::ExitStatusExt;
 use std::process::Command;
 use std::thread;
+use structopt::StructOpt;
 use url::Url;
 
 #[derive(StructOpt, Debug)]
@@ -90,16 +90,15 @@ fn spawn_browser(command: &str, url: &str) {
     if output.status.success() {
         debug!("Process exited successfully");
     } else {
-        info!("stdout:\n{:?}\n\nstderr:\n{:?}",
-              output.stdout,
-              output.stderr);
+        info!(
+            "stdout:\n{:?}\n\nstderr:\n{:?}",
+            output.stdout, output.stderr
+        );
         match output.status.code() {
-            None => {
-                match output.status.signal() {
-                    None => panic!("Should never happen!"),
-                    Some(i) => panic!("Process received signal: {}", i),
-                }
-            }
+            None => match output.status.signal() {
+                None => panic!("Should never happen!"),
+                Some(i) => panic!("Process received signal: {}", i),
+            },
             Some(i) => panic!("Process exited with status: {}", i),
         }
     }
