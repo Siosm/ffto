@@ -1,10 +1,12 @@
 [package]
 name = "ffto"
 version = "0.0.2"
+description = "Open URLs received as input in the default browser"
 authors = ["Timothée Ravier <tim@siosm.fr>"]
 
 [dependencies]
 log = "*"
 url = "*"
 rustc-serialize = "*"
-clap = "*"
+structopt = "*"
+structopt-derive = "*"

@@ -2,9 +2,11 @@
 extern crate log;
 extern crate url;
 extern crate rustc_serialize;
-extern crate clap;
+extern crate structopt;
+#[macro_use]
+extern crate structopt_derive;
 
-use clap::{Arg, App};
+use structopt::StructOpt;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::process::ExitStatusExt;
@@ -12,31 +14,25 @@ use std::process::Command;
 use std::thread;
 use url::Url;
 
+#[derive(StructOpt, Debug)]
+#[structopt()]
+struct Opt {
+    #[structopt(short = "c", long = "command", default_value = "xdg-open")]
+    /// Command executed for each URL received
+    command: String,
+
+    #[structopt(short = "l", long = "listen-address", default_value = "127.0.0.1:7777")]
+    /// Address and port to listen to
+    address: String,
+}
+
 fn main() {
-    let matches = App::new("ffto")
-        .version("0.0.2")
-        .author("Timothée Ravier <tim@siosm.fr>")
-        .about("Open URLs received as input in the default browser")
-        .arg(Arg::with_name("command")
-            .short("c")
-            .long("command")
-            .value_name("cmd")
-            .help("Command executed for each URL received")
-            .default_value("xdg-open"))
-        .arg(Arg::with_name("listen address")
-            .short("l")
-            .long("listen-address")
-            .value_name("addr")
-            .help("Address and port to listen to")
-            .default_value("127.0.0.1:7777"))
-        .get_matches();
+    let opt = Opt::from_args();
 
-    let browser_command = matches.value_of("command").unwrap().to_string();
-    let address = matches.value_of("listen address").unwrap();
-
-    let listener = match TcpListener::bind(&address[..]) {
+    let browser_command = opt.command;
+    let listener = match TcpListener::bind(opt.address) {
         Ok(l) => l,
-        Err(e) => panic!("Could not bind to {}: {}", address, e),
+        Err(e) => panic!("Could not bind to {}: {}", opt.address, e),
     };
 
     for stream in listener.incoming() {
