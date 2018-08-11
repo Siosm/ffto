@@ -30,7 +30,7 @@ fn main() {
     let opt = Opt::from_args();
 
     let browser_command = opt.command;
-    let listener = match TcpListener::bind(opt.address) {
+    let listener = match TcpListener::bind(opt.address.clone()) {
         Ok(l) => l,
         Err(e) => panic!("Could not bind to {}: {}", opt.address, e),
     };
@@ -42,7 +42,7 @@ fn main() {
                 let command = browser_command.clone();
                 thread::spawn(move || {
                     debug!("Spawned new thread to handle connection");
-                    handle_client(stream, command)
+                    handle_client(stream, &command)
                 });
             }
             Err(e) => panic!("Could not handle incoming connection: {}", e),
@@ -52,7 +52,7 @@ fn main() {
     drop(listener);
 }
 
-fn handle_client(mut stream: TcpStream, browser_command: String) {
+fn handle_client(mut stream: TcpStream, browser_command: &str) {
     let mut message = String::new();
     match stream.read_to_string(&mut message) {
         Ok(_) => {}
